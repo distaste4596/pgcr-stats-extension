@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "PGCR Stats Extension",
+  "version": "1.0.0",
+  "description": "Extended view for stats on raid.report and dungeon.report profiles and PGCR pages.",
+  "icons": { "48": "icon.png", "128": "icon.png" },
+  "permissions": ["storage"],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "pgcr-stats@distaste4596",
+      "strict_min_version": "128.0",
+      "data_collection_permissions": { "required": ["none"] }
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://raid.report/*", "https://dungeon.report/*"],
+      "js": ["content.js"],
+      "css": ["content.css"]
+    },
+    {
+      "matches": ["https://raid.report/*", "https://dungeon.report/*"],
+      "js": ["private-profile.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
