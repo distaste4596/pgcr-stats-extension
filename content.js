@@ -7,7 +7,7 @@ const PLATFORMS = { 1: 'xb', 2: 'ps', 3: 'pc', 4: 'pc', 5: 'stadia', 6: 'epic' }
 const MEMBERSHIP_TYPES = { xb: 1, ps: 2, pc: 3, stadia: 5, epic: 6 }
 
 const statValue = (values, key) => values?.[key]?.basic.value || 0
-const percent = (part, whole) => (whole ? (100 * part / whole).toFixed(1) : '0.0') + '%'
+const percent = (part, whole) => (whole ? 100 * part / whole : 0).toFixed(1) + '%'
 const formatTime = seconds => `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
 const escapeHtml = text => String(text).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 const classNames = s => escapeHtml([...s.classes].join(' / '))
@@ -20,7 +20,10 @@ const pressButton = e => {
 let shownId = null
 let shownPanel = null
 let closeModal = null
+let linksObserver = null
 const pendingWeapons = new Map()
+const clans = new Map()
+const banners = new Map()
 const recent = []
 
 const check = () => {
@@ -55,32 +58,27 @@ const check = () => {
   })
 }
 
-const clans = new Map()
-const banners = new Map()
-let linksObserver = null
 // destiny glyphs render as boxes and filler characters stand in for spaces
 const cleanName = text => text.replace(/[\uE000-\uF8FF\u200B-\u200F\u2060\uFEFF]/g, '')
   .replace(/[\s\u115F\u1160\u3164\uFFA0\u2800]+/g, ' ').trim()
 
 const addProfileLinks = () => {
   const [, platform, id] = location.pathname.match(/^\/(xb|ps|pc|stadia|epic)\/(\d+)/) || []
+  const old = document.querySelector('.ps-links-row')
   if (!id) {
     linksObserver?.disconnect()
     linksObserver = null
-    document.querySelector('.ps-links-row')?.remove()
+    old?.remove()
     return
   }
-  const old = document.querySelector('.ps-links-row')
   if (old && old.dataset.id !== id) old.remove()
+  const type = MEMBERSHIP_TYPES[platform]
   const header = document.querySelector('.player-info-memberships')
   const name = header?.querySelector('.player-info-display-name')
   const badge = header?.querySelector(':scope > a.left')
+  let clan = header?.querySelector('.ps-clan')
   // wait for react to replace the previous profile header
-  if (!name || !badge?.href.includes(id)) return
-  const type = MEMBERSHIP_TYPES[platform]
-
-  let clan = header.querySelector('.ps-clan')
-  if (clan?.dataset.id !== id) {
+  if (name && badge?.href.includes(id) && clan?.dataset.id !== id) {
     clan?.remove()
     // insert before fetching so redraws cannot start duplicate clan lookups
     clan = Object.assign(document.createElement('a'), { className: 'ps-clan', target: '_blank', rel: 'noopener' })
@@ -101,13 +99,16 @@ const addProfileLinks = () => {
   }
 
   const ranks = document.querySelector('.card-length')?.parentElement
-  if (!ranks || (old?.isConnected && old.previousElementSibling === ranks)) return
+  if (!ranks || old?.previousElementSibling === ranks) return
   old?.remove()
+  // build links before the slow profile header is ready
+  const [otherName, otherSite] = location.hostname === 'raid.report'
+    ? ['Dungeon Report', 'https://dungeon.report'] : ['Raid Report', 'https://raid.report']
   const links = [
-    [badge.textContent, badge.href, new URL('/favicon.ico', badge.href)],
+    [otherName, `${otherSite}/${platform}/${id}`, `${otherSite}/favicon.ico`],
     ['PGCR Report', `https://pgcr.report/@${id}/${type}`, 'https://pgcr.report/pgcr-report.svg'],
     ['Bungie.net', `${BNET}/7/en/User/Profile/${type}/${id}`, `${BNET}/7/favicon.ico`]
-  ].map(([name, url, icon]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="${escapeHtml(name)}"><img src="${escapeHtml(icon)}" alt=""></a>`)
+  ].map(([label, url, icon]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener" aria-label="${escapeHtml(label)}"><img src="${escapeHtml(icon)}" alt=""></a>`)
   const row = document.createElement('div')
   row.className = 'left ps-links-row'
   row.dataset.id = id
@@ -120,18 +121,6 @@ const addProfileLinks = () => {
   })
   linksObserver.observe(ranks)
 }
-
-const onChange = () => {
-  check()
-  addProfileLinks()
-}
-// image errors do not bubble
-document.addEventListener('error', e => {
-  const img = e.target
-  if (img.tagName === 'IMG' && img.src !== MISSING_ICON && img.closest('.ps-root, .ps-links')) img.src = MISSING_ICON
-}, true)
-new MutationObserver(onChange).observe(document.documentElement, { childList: true, subtree: true })
-onChange()
 
 async function bungie(url) {
   while (recent.length === 60 && Date.now() - recent[0] < 1000) {
@@ -173,8 +162,8 @@ async function render(instanceId, panel) {
   if (panel !== shownPanel) return
   if (!pgcr.entries?.length) throw new Error('No players in this activity')
   const duration = statValue(pgcr.entries[0].values, 'activityDurationSeconds')
-  const [weaponDefs, lookups] = await getWeapons([...new Set(pgcr.entries.flatMap(e => e.extended?.weapons || []).map(w => w.referenceId))])
-    .catch(() => [{}, null])
+  const hashes = [...new Set(pgcr.entries.flatMap(e => e.extended?.weapons || []).map(w => w.referenceId))]
+  const [weaponDefs, lookups] = await getWeapons(hashes).catch(() => [{}, null])
 
   const newStats = () => ({
     light: 0,
@@ -295,16 +284,15 @@ async function render(instanceId, panel) {
       if (!slotRows.length) return ''
       const slotKills = slotRows.reduce((sum, row) => sum + row.kills, 0)
       const weapons = slotRows.map(row => {
-        const icon = `<img src="${row.icon ? BNET + row.icon : MISSING_ICON}">`
         const share = percent(row.kills, slotKills)
-        return `<div class="ps-weapon">${icon}
+        return `<div class="ps-weapon"><img src="${row.icon ? BNET + row.icon : MISSING_ICON}">
           <div class="ps-wmain">
             <div class="ps-wtop"><span class="ps-wname">${escapeHtml(row.name)}</span><span class="ps-wkills">${row.kills}<small>${share}</small></span></div>
             <div class="ps-bar"><i style="width:${share}"></i></div>
             <div class="ps-sub">${row.sub}</div>
           </div></div>`
       }).join('')
-      return `<div class="ps-slot"><div class="ps-slot-head"><span>${slot}</span><span>${slotKills} kills</span></div>${weapons}</div>`
+      return `<div class="ps-slot"><div class="ps-slot-head"><span>${slot}</span><span>${slotKills} kill${slotKills === 1 ? '' : 's'}</span></div>${weapons}</div>`
     }).join('')
     return slots || '<div class="ps-sub">No weapon kills</div>'
   }
@@ -498,3 +486,16 @@ async function render(instanceId, panel) {
     if (row && !e.target.closest('.ps-open')) openPlayer(list[row.dataset.i])
   })
 }
+
+const onChange = () => {
+  check()
+  addProfileLinks()
+}
+// image errors do not bubble
+document.addEventListener('error', e => {
+  const img = e.target
+  if (img.tagName === 'IMG' && img.src !== MISSING_ICON && img.closest('.ps-root, .ps-links')) img.src = MISSING_ICON
+}, true)
+// document_start can run before the html element exists
+new MutationObserver(onChange).observe(document, { childList: true, subtree: true })
+onChange()

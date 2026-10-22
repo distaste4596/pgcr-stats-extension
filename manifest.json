@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PGCR Stats Extension",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Extended view for stats on raid.report and dungeon.report profiles and PGCR pages.",
   "icons": { "48": "icon.png", "128": "icon.png" },
   "permissions": ["storage"],
@@ -16,11 +16,12 @@
     {
       "matches": ["https://raid.report/*", "https://dungeon.report/*"],
       "js": ["content.js"],
-      "css": ["content.css"]
+      "css": ["content.css"],
+      "run_at": "document_start"
     },
     {
       "matches": ["https://raid.report/*", "https://dungeon.report/*"],
-      "js": ["private-profile.js"],
+      "js": ["private-profile.js", "speedup.js"],
       "run_at": "document_start",
       "world": "MAIN"
     }

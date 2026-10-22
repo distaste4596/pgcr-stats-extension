@@ -1,6 +1,5 @@
 // keep clears and ranks visible when bungie hides the activity history
 {
-  const empty = () => ({ Response: { activities: [] }, ErrorCode: 1, ThrottleSeconds: 0, ErrorStatus: 'Success', Message: 'Ok', MessageData: {} })
   const proto = XMLHttpRequest.prototype
   const open = proto.open
   const status = Object.getOwnPropertyDescriptor(proto, 'status').get
@@ -21,7 +20,7 @@
     get() {
       if (!isHidden(this)) return response.call(this)
       hiddenPaths.add(this.psPath)
-      return empty()
+      return { Response: { activities: [] }, ErrorCode: 1, ThrottleSeconds: 0, ErrorStatus: 'Success', Message: 'Ok', MessageData: {} }
     }
   })
 
@@ -32,9 +31,11 @@
     if (!header) return banner?.remove()
     if (banner?.nextElementSibling === header) return
     const el = banner || document.createElement('div')
-    el.id = 'ps-private'
-    el.innerHTML = `<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-      <div><b>This profile is private</b><span>The activity history can't be loaded, so recent runs are missing. Clears, ranks and fastest times still show.</span></div>`
+    if (!banner) {
+      el.id = 'ps-private'
+      el.innerHTML = `<svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <div><b>This profile is private</b><span>The activity history can't be loaded, so recent runs are missing. Clears, ranks and fastest times still show.</span></div>`
+    }
     header.before(el)
   }).observe(document, { childList: true, subtree: true })
 }
