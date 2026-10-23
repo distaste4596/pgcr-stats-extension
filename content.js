@@ -11,6 +11,10 @@ const percent = (part, whole) => (whole ? 100 * part / whole : 0).toFixed(1) + '
 const formatTime = seconds => `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`
 const escapeHtml = text => String(text).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
 const classNames = s => escapeHtml([...s.classes].join(' / '))
+const copyText = (button, text) => navigator.clipboard.writeText(text).then(() => {
+  button.classList.add('ps-copied')
+  setTimeout(() => button.classList.remove('ps-copied'), 1200)
+})
 const pressButton = e => {
   if ((e.key !== 'Enter' && e.key !== ' ') || !e.target.matches('[role=button]')) return
   e.preventDefault()
@@ -351,6 +355,21 @@ async function render(instanceId, panel) {
     return { hash, kills: weapon.kills, sub: `<span class="ps-users">${count}<span class="ps-tip">${users}</span></span>` }
   })
 
+  const json = JSON.stringify(pgcr, null, 2)
+  const jsonHtml = json.split('\n').map(line => {
+    const html = line.replace(/("(?:[^"\\]|\\.)*")(:)?|-?\d[\d.eE+-]*|true|false|null/g, (token, string, colon) => {
+      if (colon) return `<span class="ps-jk">${escapeHtml(string)}</span>:`
+      if (string) return `<span class="ps-js">${escapeHtml(string)}</span>`
+      return `<span class="${/^[tfn]/.test(token) ? 'ps-jl' : 'ps-jn'}">${token}</span>`
+    })
+    if (line === '    {') return `<div class="ps-json-entry"><div>${html}</div>`
+    if (/^ {4}\},?$/.test(line)) return `<div>${html}</div></div>`
+    return `<div>${html}</div>`
+  }).join('')
+  const jsonChips = pgcr.entries.map((e, i) => {
+    const user = e.player.destinyUserInfo
+    return `<span class="ps-json-chip" role="button" tabindex="0" data-entry="${i}">${escapeHtml(user.bungieGlobalDisplayName || user.displayName)} · ${escapeHtml(e.player.characterClass)}</span>`
+  }).join('')
   panel.innerHTML = `<div class="ps-body">
     <div class="ps-section">Fireteam</div>
     <div class="ps-table">
@@ -364,6 +383,15 @@ async function render(instanceId, panel) {
     <div class="ps-tiles">${tiles}</div>
     <div class="ps-section">Weapons</div>
     <div class="ps-slots">${weaponList(teamWeaponRows)}</div>
+    <details class="ps-json"><summary>API Response (JSON)</summary>
+    <div class="ps-json-chips">${jsonChips}</div>
+    <div class="ps-json-box">
+      <span class="ps-copy" role="button" tabindex="0" aria-label="Copy JSON">
+        <svg class="ps-copyicon" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12"/><path d="M5 15H3V3h12v2"/></svg>
+        <svg class="ps-check" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
+      </span>
+      <pre>${jsonHtml}</pre>
+    </div></details>
   </div>`
   if (late) lookups.then(() => { panel.querySelector('.ps-slots').innerHTML = weaponList(teamWeaponRows) })
 
@@ -457,10 +485,7 @@ async function render(instanceId, panel) {
         showTab()
       }
       const copyButton = e.target.closest('.ps-copy')
-      if (copyButton) navigator.clipboard.writeText(p.name + code).then(() => {
-        copyButton.classList.add('ps-copied')
-        setTimeout(() => copyButton.classList.remove('ps-copied'), 1200)
-      })
+      if (copyButton) copyText(copyButton, p.name + code)
     })
     overlay.addEventListener('keydown', pressButton)
     document.addEventListener('keydown', onKey)
@@ -484,6 +509,17 @@ async function render(instanceId, panel) {
   panel.addEventListener('click', e => {
     const row = e.target.closest('.ps-player')
     if (row && !e.target.closest('.ps-open')) openPlayer(list[row.dataset.i])
+    const copyButton = e.target.closest('.ps-copy')
+    if (copyButton) copyText(copyButton, json)
+    const chip = e.target.closest('.ps-json-chip')
+    if (chip) {
+      const pre = panel.querySelector('.ps-json pre')
+      const entry = pre.querySelectorAll('.ps-json-entry')[chip.dataset.entry]
+      panel.querySelectorAll('.ps-json .ps-on').forEach(el => el.classList.remove('ps-on'))
+      chip.classList.add('ps-on')
+      entry.classList.add('ps-on')
+      pre.scrollTop += entry.getBoundingClientRect().top - pre.getBoundingClientRect().top
+    }
   })
 }
 

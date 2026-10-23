@@ -7,6 +7,7 @@ Extended view for stats on raid.report and dungeon.report profiles and PGCR page
 ### PGCR pages 
 - Fireteam table with kills, deaths, assists, K/D, kill share, precision kills, time played, an MVP pick, summary tiles and a weapon breakdown by slot.
 - Click a player to see a player specific info breakdown.
+- API response viewer
 ### Profiles
 - Shows the clan in the emblem (links to raidhub.io) and adds quick links to raid.report/dungeon.report, pgcr.report and Bungie.net.
 - Private profiles no longer end in an error. Clears, ranks and fastest times stay visible, with a notice that the activity history can't be loaded. (This doesn't add anything that raid.report/dungeon.report wasn't showing before, now it's just easier to navigate)
