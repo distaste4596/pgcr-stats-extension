@@ -220,6 +220,7 @@ html:not(:has(.drr-dark)) :is(#ps-private, #ps-stale) { color: rgba(0, 0, 0, 0.8
 .ps-overlay .ps-code { margin-left: 2px; font-size: 1rem; color: rgba(255, 255, 255, 0.6); }
 .ps-overlay .ps-msub { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 0.85rem; color: rgba(255, 255, 255, 0.8); }
 .ps-overlay .ps-msub .ps-mvp { padding: 2px 7px; background: rgba(0, 0, 0, 0.5); }
+.ps-root .ps-dnf { color: #f44336; background: rgba(244, 67, 54, 0.1); border-color: rgba(244, 67, 54, 0.3); }
 
 .ps-overlay .ps-copy {
   display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: 4px; vertical-align: middle;

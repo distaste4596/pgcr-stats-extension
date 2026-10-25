@@ -270,7 +270,8 @@ async function render(instanceId, panel) {
   }
   const mvp = list.length > 2 ? list.reduce((best, p) =>
     p.completed && (!best || p.mvpScore > best.mvpScore) ? p : best, null) : null
-  const mvpBadge = p => (p === mvp ? '<span class="ps-mvp">MVP</span>' : '')
+  const badge = p => p === mvp ? '<span class="ps-mvp">MVP</span>'
+    : p.completed ? '' : '<span class="ps-mvp ps-dnf" title="Did not finish">DNF</span>'
 
   const total = key => list.reduce((sum, p) => sum + p[key], 0)
   const leaderBy = score => list.reduce((best, p) => (score(p) > score(best) ? p : best))
@@ -304,7 +305,7 @@ async function render(instanceId, panel) {
   const playerRows = list.map((p, i) => `
     <div class="ps-grid ps-player" data-i="${i}" role="button" tabindex="0">
       <div class="ps-who"><img src="${BNET + p.icon}"><div>
-        <div class="ps-nameline"><span class="ps-name">${escapeHtml(p.name)}</span>${mvpBadge(p)}</div>
+        <div class="ps-nameline"><span class="ps-name">${escapeHtml(p.name)}</span>${badge(p)}</div>
         <div class="ps-sub">${classNames(p)}</div>
       </div></div>
       <span>${p.kills}</span><span>${p.deaths}</span><span>${p.assists}</span><span>${kd(p).toFixed(2)}</span>
@@ -443,7 +444,7 @@ async function render(instanceId, panel) {
               <svg class="ps-check" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6"/></svg>
             </span>
           </div>
-          <div class="ps-msub">${mvpBadge(p)}${classNames(p)} · ${p.light} Power</div>
+          <div class="ps-msub">${badge(p)}${classNames(p)} · ${p.light} Power</div>
         </div>
         <span class="ps-close" role="button" tabindex="0" aria-label="Close">×</span>
       </div>
